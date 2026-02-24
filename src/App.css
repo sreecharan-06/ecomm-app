@@ -1,0 +1,17 @@
+.global-date-time {
+  position: fixed;
+  top: 8px;
+  right: 12px;
+  z-index: 9999;
+  font-size: 11px;
+  line-height: 1.2;
+  text-transform: lowercase;
+  color: #444;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.global-date-time p {
+  margin: 0;
+}
