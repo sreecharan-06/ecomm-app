@@ -11,10 +11,27 @@ import Admin from "./components/Admin"
 import User from "./components/User"
 import { CartContext } from "./context/CartContext"
 
-function App(){
-  const [cart, setCart] = useState([]);
+function App() {
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem("cart");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [toasts, setToasts] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date().toDateString());
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("cart", JSON.stringify(cart));
+    } catch (e) {
+      console.error("Failed to save cart to localStorage", e);
+    }
+  }, [cart]);
 
   useEffect(() => {
     const timerId = setInterval(() => {
@@ -25,6 +42,14 @@ function App(){
 
     return () => clearInterval(timerId);
   }, []);
+
+  const showToast = (message, type = "success") => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3200);
+  };
 
   const addToCart = (product) => {
     setCart(prevCart => {
@@ -37,10 +62,17 @@ function App(){
         return [...prevCart, { ...product, quantity: 1 }];
       }
     });
+    showToast(`Added "${product.title}" to your cart!`, "success");
   };
 
   const removeFromCart = (productId) => {
-    setCart(prevCart => prevCart.filter(item => item.id !== productId));
+    setCart(prevCart => {
+      const item = prevCart.find(i => i.id === productId);
+      if (item) {
+        showToast(`Removed "${item.title}" from cart.`, "info");
+      }
+      return prevCart.filter(i => i.id !== productId);
+    });
   };
 
   const updateQuantity = (productId, quantity) => {
@@ -55,27 +87,47 @@ function App(){
     }
   };
 
-  return(
-    <>
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity }}>
-    <HashRouter>
-    <div className="global-date-time">
-      <p>The current Date is: {currentDate}</p>
-      <p>The current time is: {currentTime}</p>
-    </div>
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/products" element={<Products1 />} />
-      <Route path="/cart" element={<Cart />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/admin" element={<Admin />} />
-      <Route path="/user" element={<User />} />
-      
-    </Routes>
-    </HashRouter>
+  const clearCart = () => {
+    setCart([]);
+    try {
+      localStorage.removeItem("cart");
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const totalCartCount = cart.reduce((acc, item) => acc + (item.quantity || 1), 0);
+
+  return (
+    <CartContext.Provider value={{ cart, totalCartCount, addToCart, removeFromCart, updateQuantity, clearCart, showToast }}>
+      <HashRouter>
+        <div className="global-date-time" title="System Live Time">
+          <span className="global-date-time-dot"></span>
+          <p><strong>{currentDate}</strong> · {currentTime}</p>
+        </div>
+
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/products" element={<Products1 />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/user" element={<User />} />
+        </Routes>
+
+        {/* Floating Toast Notification Stack */}
+        <div className="toast-portal-container">
+          {toasts.map(t => (
+            <div key={t.id} className={`toast-portal-item ${t.type}`}>
+              <span>{t.type === "success" ? "✓" : t.type === "info" ? "ℹ" : "⚠"}</span>
+              <span>{t.message}</span>
+            </div>
+          ))}
+        </div>
+      </HashRouter>
     </CartContext.Provider>
-    </>
-  )
+  );
 }
-export default App
+
+export default App;
